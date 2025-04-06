@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seleziona i tuoi Pokémon</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 30px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 15px;
+    }
+    .card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background-color: #f4f4f4;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.03);
+    }
+    .card.selected {
+      background-color: #bbf7d0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Seleziona i tuoi Pokémon</h1>
+  <input type="text" id="searchInput" placeholder="Cerca un Pokémon..." />
+
+  <div class="grid" id="pokemonGrid"></div>
+
+  <script>
+    const pokemonList = [
+      "Bulbasaur", "Ivysaur", "Venusaur", "Charmander", "Charmeleon", "Charizard",
+      "Squirtle", "Wartortle", "Blastoise", "Caterpie", "Metapod", "Butterfree",
+      "Weedle", "Kakuna", "Beedrill", "Pidgey", "Pidgeotto", "Pidgeot",
+      "Rattata", "Raticate", "Spearow", "Fearow", "Ekans", "Arbok",
+      "Pikachu", "Raichu", "Sandshrew", "Sandslash", "Nidoran♀", "Nidorina",
+      "Nidoqueen", "Nidoran♂", "Nidorino", "Nidoking", "Clefairy", "Clefable",
+      "Vulpix", "Ninetales", "Jigglypuff", "Wigglytuff", "Zubat", "Golbat",
+      "Oddish", "Gloom", "Vileplume", "Paras", "Parasect", "Venonat",
+      "Venomoth", "Diglett", "Dugtrio", "Meowth", "Persian", "Psyduck",
+      "Golduck", "Mankey", "Primeape", "Growlithe", "Arcanine", "Poliwag",
+      "Poliwhirl", "Poliwrath", "Abra", "Kadabra", "Alakazam", "Machop",
+      "Machoke", "Machamp", "Bellsprout", "Weepinbell", "Victreebel", "Tentacool",
+      "Tentacruel", "Geodude", "Graveler", "Golem", "Ponyta", "Rapidash",
+      "Slowpoke", "Slowbro", "Magnemite", "Magneton", "Farfetch’d", "Doduo",
+      "Dodrio", "Seel", "Dewgong", "Grimer", "Muk", "Shellder",
+      "Cloyster", "Gastly", "Haunter", "Gengar", "Onix", "Drowzee",
+      "Hypno", "Krabby", "Kingler", "Voltorb", "Electrode", "Exeggcute",
+      "Exeggutor", "Cubone", "Marowak", "Hitmonlee", "Hitmonchan", "Lickitung",
+      "Koffing", "Weezing", "Rhyhorn", "Rhydon", "Chansey", "Tangela",
+      "Kangaskhan", "Horsea", "Seadra", "Goldeen", "Seaking", "Staryu",
+      "Starmie", "Mr. Mime", "Scyther", "Jynx", "Electabuzz", "Magmar",
+      "Pinsir", "Tauros", "Magikarp", "Gyarados", "Lapras", "Ditto",
+      "Eevee", "Vaporeon", "Jolteon", "Flareon", "Porygon", "Omanyte",
+      "Omastar", "Kabuto", "Kabutops", "Aerodactyl", "Snorlax", "Articuno",
+      "Zapdos", "Moltres", "Dratini", "Dragonair", "Dragonite", "Mewtwo",
+      "Mew"
+    ];
+
+    const selected = {};
+    const grid = document.getElementById('pokemonGrid');
+    const searchInput = document.getElementById('searchInput');
+
+    function renderPokemon() {
+      const search = searchInput.value.toLowerCase();
+      grid.innerHTML = '';
+
+      pokemonList
+        .filter(name => name.toLowerCase().includes(search))
+        .forEach(name => {
+          const card = document.createElement('div');
+          card.className = 'card' + (selected[name] ? ' selected' : '');
+          card.innerHTML = `<input type="checkbox" ${selected[name] ? 'checked' : ''} readonly /> <span>${name}</span>`;
+          card.onclick = () => {
+            selected[name] = !selected[name];
+            renderPokemon();
+          };
+          grid.appendChild(card);
+        });
+    }
+
+    searchInput.addEventListener('input', renderPokemon);
+
+    // First render
+    renderPokemon();
+  </script>
+</body>
+</html>
