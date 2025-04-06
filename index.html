@@ -18,10 +18,16 @@
     input[type="text"] {
       width: 100%;
       padding: 10px;
-      margin-bottom: 30px;
+      margin-bottom: 15px;
       border: 1px solid #ccc;
       border-radius: 8px;
       font-size: 16px;
+    }
+    .options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
     }
     .grid {
       display: grid;
@@ -49,7 +55,18 @@
 <body>
 
   <h1>Seleziona i tuoi Pokémon</h1>
+  
   <input type="text" id="searchInput" placeholder="Cerca un Pokémon..." />
+  
+  <div class="options">
+    <!-- Contatore dei Pokémon selezionati -->
+    <div id="counter">Pokémon selezionati: 0</div>
+    <!-- Checkbox per nascondere i Pokémon spuntati -->
+    <div>
+      <input type="checkbox" id="hideSelected" />
+      <label for="hideSelected">Nascondi spuntati</label>
+    </div>
+  </div>
 
   <div class="grid" id="pokemonGrid"></div>
 
@@ -86,29 +103,48 @@
     const selected = {};
     const grid = document.getElementById('pokemonGrid');
     const searchInput = document.getElementById('searchInput');
+    const hideSelectedCheckbox = document.getElementById('hideSelected');
+    const counterDisplay = document.getElementById('counter');
+
+    function updateCounter() {
+      // Conta quanti Pokémon sono selezionati
+      const count = Object.values(selected).filter(val => val).length;
+      counterDisplay.innerText = `Pokémon selezionati: ${count}`;
+    }
 
     function renderPokemon() {
       const search = searchInput.value.toLowerCase();
+      const hideSelected = hideSelectedCheckbox.checked;
       grid.innerHTML = '';
 
-      pokemonList
-        .filter(name => name.toLowerCase().includes(search))
-        .forEach(name => {
-          const card = document.createElement('div');
-          card.className = 'card' + (selected[name] ? ' selected' : '');
-          card.innerHTML = `<input type="checkbox" ${selected[name] ? 'checked' : ''} readonly /> <span>${name}</span>`;
-          card.onclick = () => {
-            selected[name] = !selected[name];
-            renderPokemon();
-          };
-          grid.appendChild(card);
-        });
+      // Filtra in base alla ricerca e, se richiesto, nasconde quelli già selezionati
+      let filteredList = pokemonList.filter(name => name.toLowerCase().includes(search));
+      if (hideSelected) {
+        filteredList = filteredList.filter(name => !selected[name]);
+      }
+
+      filteredList.forEach(name => {
+        const card = document.createElement('div');
+        card.className = 'card' + (selected[name] ? ' selected' : '');
+        card.innerHTML = `<input type="checkbox" ${selected[name] ? 'checked' : ''} readonly /> <span>${name}</span>`;
+        card.onclick = () => {
+          selected[name] = !selected[name];
+          renderPokemon();
+          updateCounter();
+        };
+        grid.appendChild(card);
+      });
+
+      updateCounter();
     }
 
+    // Aggiungiamo gli event listener
     searchInput.addEventListener('input', renderPokemon);
+    hideSelectedCheckbox.addEventListener('change', renderPokemon);
 
-    // First render
+    // Primo rendering
     renderPokemon();
   </script>
 </body>
 </html>
+
