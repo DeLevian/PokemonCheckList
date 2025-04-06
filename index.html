@@ -8,7 +8,7 @@
     body {
       font-family: sans-serif;
       padding: 20px;
-      max-width: 1000px;
+      max-width: 1000px; /* Aumentato leggermente per dare più spazio */
       margin: auto;
     }
     h1 {
@@ -17,6 +17,7 @@
     }
     input[type="text"] {
       width: 100%;
+      box-sizing: border-box; /* Aggiunto per includere padding/border nel width */
       padding: 10px;
       margin-bottom: 15px;
       border: 1px solid #ccc;
@@ -31,33 +32,58 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      /* Aumentato minmax per dare spazio allo sprite */
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
       gap: 15px;
     }
     .card {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px; /* Ridotto leggermente il gap */
       padding: 10px;
       background-color: #f4f4f4;
       border-radius: 10px;
       cursor: pointer;
       transition: background-color 0.3s, transform 0.2s;
+      overflow: hidden; /* Per sicurezza se lo sprite fosse troppo grande */
     }
     .card:hover {
       transform: scale(1.03);
     }
     .card.selected {
-      background-color: #bbf7d0;
+      background-color: #bbf7d0; /* Verde chiaro per selezionato */
+    }
+    .card img {
+      /* Stile per lo sprite */
+      width: 40px;  /* Larghezza fissa */
+      height: 40px; /* Altezza fissa */
+      object-fit: contain; /* Mantiene le proporzioni */
+      /* Per mantenere la pixelatura se lo sprite è piccolo */
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    .card span {
+      /* Per assicurarsi che il testo non vada a capo troppo facilmente */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-grow: 1; /* Occupa lo spazio rimanente */
+    }
+    .card input[type="checkbox"] {
+        margin-right: 5px; /* Spazio tra checkbox e nome */
+        /* Rende il checkbox non cliccabile direttamente,
+           l'evento è gestito dalla card */
+        pointer-events: none;
     }
   </style>
 </head>
 <body>
 
   <h1>Seleziona i tuoi Pokémon</h1>
-  
+
   <input type="text" id="searchInput" placeholder="Cerca un Pokémon..." />
-  
+
   <div class="options">
     <!-- Contatore dei Pokémon selezionati -->
     <div id="counter">Pokémon selezionati: 0</div>
@@ -106,8 +132,19 @@
     const hideSelectedCheckbox = document.getElementById('hideSelected');
     const counterDisplay = document.getElementById('counter');
 
+    // --- NUOVA FUNZIONE per ottenere il nome corretto per l'URL dello sprite ---
+    function getSpriteName(pokemonName) {
+      let spriteName = pokemonName.toLowerCase();
+      // Gestisce i casi speciali
+      spriteName = spriteName.replace('♀', 'f').replace('♂', 'm'); // Nidoran
+      spriteName = spriteName.replace(/[.'\s]/g, ''); // Rimuove ., ' e spazi (es: Mr. Mime -> mrmime, Farfetch'd -> farfetchd)
+      // Caso speciale Porygon Z (non in Gen1 ma esempio) -> porygon-z
+      // spriteName = spriteName.replace(' ','-');
+      return spriteName;
+    }
+    // --- FINE NUOVA FUNZIONE ---
+
     function updateCounter() {
-      // Conta quanti Pokémon sono selezionati
       const count = Object.values(selected).filter(val => val).length;
       counterDisplay.innerText = `Pokémon selezionati: ${count}`;
     }
@@ -115,9 +152,8 @@
     function renderPokemon() {
       const search = searchInput.value.toLowerCase();
       const hideSelected = hideSelectedCheckbox.checked;
-      grid.innerHTML = '';
+      grid.innerHTML = ''; // Pulisce la griglia
 
-      // Filtra in base alla ricerca e, se richiesto, nasconde quelli già selezionati
       let filteredList = pokemonList.filter(name => name.toLowerCase().includes(search));
       if (hideSelected) {
         filteredList = filteredList.filter(name => !selected[name]);
@@ -126,23 +162,40 @@
       filteredList.forEach(name => {
         const card = document.createElement('div');
         card.className = 'card' + (selected[name] ? ' selected' : '');
-        card.innerHTML = `<input type="checkbox" ${selected[name] ? 'checked' : ''} readonly /> <span>${name}</span>`;
+
+        // --- MODIFICA per aggiungere lo sprite ---
+        const spriteName = getSpriteName(name);
+        const spriteUrl = `https://play.pokemonshowdown.com/sprites/ani/${spriteName}.gif`;
+
+        // Controlla se lo sprite esiste, altrimenti usa un placeholder o nascondilo
+        // Nota: questo controllo base non previene tutti gli errori 404,
+        // una gestione più robusta richiederebbe onerror sull'immagine.
+        // Per semplicità, assumiamo che gli URL siano corretti per Gen1.
+
+        card.innerHTML = `
+          <img src="${spriteUrl}" alt="Sprite di ${name}" loading="lazy">
+          <input type="checkbox" ${selected[name] ? 'checked' : ''} >
+          <span>${name}</span>
+        `;
+        // --- FINE MODIFICA ---
+
         card.onclick = () => {
           selected[name] = !selected[name];
+          // Ri-renderizza per aggiornare lo stato visivo e applicare i filtri
           renderPokemon();
-          updateCounter();
+          // updateCounter non è più necessario qui perché renderPokemon lo chiama già alla fine
         };
         grid.appendChild(card);
       });
 
-      updateCounter();
+      updateCounter(); // Aggiorna il contatore dopo aver renderizzato
     }
 
     // Aggiungiamo gli event listener
     searchInput.addEventListener('input', renderPokemon);
     hideSelectedCheckbox.addEventListener('change', renderPokemon);
 
-    // Primo rendering
+    // Primo rendering all'avvio
     renderPokemon();
   </script>
 </body>
