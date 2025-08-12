@@ -1,203 +1,1009 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Seleziona i tuoi Pokémon</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-      max-width: 1000px; /* Aumentato leggermente per dare più spazio */
-      margin: auto;
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pokédex selezionatore</title>
+<style>
+  :root{
+    --bg:#0b0f17; --fg:#e7e9ee; --muted:#9aa1ad; --card:#0f1522; --border:#1e2533;
+    --accent:#10b981; --accent-ink:#052e2a; --focus:#3b82f6;
+    --chip:#141b2a; --chip-on:#10b981; --chip-on-ink:#052e2a;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#ffffff; --fg:#12151a; --muted:#6b7280; --card:#f4f6f9; --border:#dbe0e6;
+      --accent:#059669; --accent-ink:#ecfdf5; --focus:#2563eb;
+      --chip:#eef2f7; --chip-on:#059669; --chip-on-ink:#ecfdf5;
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    input[type="text"] {
-      width: 100%;
-      box-sizing: border-box; /* Aggiunto per includere padding/border nel width */
-      padding: 10px;
-      margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    .options {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .grid {
-      display: grid;
-      /* Aumentato minmax per dare spazio allo sprite */
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 15px;
-    }
-    .card {
-      display: flex;
-      align-items: center;
-      gap: 8px; /* Ridotto leggermente il gap */
-      padding: 10px;
-      background-color: #f4f4f4;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background-color 0.3s, transform 0.2s;
-      overflow: hidden; /* Per sicurezza se lo sprite fosse troppo grande */
-    }
-    .card:hover {
-      transform: scale(1.03);
-    }
-    .card.selected {
-      background-color: #bbf7d0; /* Verde chiaro per selezionato */
-    }
-    .card img {
-      /* Stile per lo sprite */
-      width: 40px;  /* Larghezza fissa */
-      height: 40px; /* Altezza fissa */
-      object-fit: contain; /* Mantiene le proporzioni */
-      /* Per mantenere la pixelatura se lo sprite è piccolo */
-      image-rendering: pixelated;
-      image-rendering: -moz-crisp-edges;
-      image-rendering: crisp-edges;
-    }
-    .card span {
-      /* Per assicurarsi che il testo non vada a capo troppo facilmente */
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex-grow: 1; /* Occupa lo spazio rimanente */
-    }
-    .card input[type="checkbox"] {
-        margin-right: 5px; /* Spazio tra checkbox e nome */
-        /* Rende il checkbox non cliccabile direttamente,
-           l'evento è gestito dalla card */
-        pointer-events: none;
-    }
-  </style>
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;}
+  header{max-width:1100px;margin:20px auto 6px;padding:0 16px}
+  h1{margin:0 0 6px;text-align:center;font-size:28px}
+  .sub{color:var(--muted);text-align:center}
+
+  .toolbar{max-width:1100px;margin:12px auto;padding:0 16px;display:grid;gap:10px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .search{flex:1 1 260px}
+  input[type="text"], select{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font-size:15px;
+  }
+  option{background:#fff;color:#111;}
+  @media (prefers-color-scheme: dark){ option{background:#0f1522;color:#e7e9ee;} }
+
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+        background:var(--chip);border:1px solid var(--border); cursor:pointer; user-select:none}
+  .chip input{appearance:none;width:16px;height:16px;border:2px solid var(--muted);border-radius:4px;display:inline-block;position:relative}
+  .chip input:checked{border-color:transparent;background:var(--chip-on)}
+  .chip input:checked::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-size:12px;color:#fff}
+  .chip span{font-size:13px}
+  .chip.active{background:var(--chip-on); color:var(--chip-on-ink); border-color:transparent}
+  .btn{border:1px solid var(--border);background:var(--card);color:var(--fg);padding:9px 12px;border-radius:10px;cursor:pointer}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  .btn:hover{filter:brightness(1.05)}
+  .btn:focus{outline:2px solid var(--focus);outline-offset:2px}
+  .counter{margin-left:auto;color:var(--muted)}
+
+  .wrap{max-width:1100px;margin:8px auto 16px;padding:0 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .card{
+    display:grid;grid-template-columns:72px 1fr;grid-template-areas:
+      "img meta"
+      "actions actions";
+    gap:10px;align-items:center;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border);
+    transition:transform .12s ease; cursor:pointer; min-height:92px;
+  }
+  .card:hover{transform:translateY(-2px)}
+  .card[aria-checked="true"]{outline:2px solid var(--accent)}
+  .sprite{grid-area:img;width:72px;height:72px;image-rendering:pixelated;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.04)}
+  .meta{grid-area:meta;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dex{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+  .types{display:flex;gap:6px;flex-wrap:wrap}
+  .type{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--border)}
+  .actions{grid-area:actions;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .actions .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--chip)}
+  .actions input[type="checkbox"]{width:16px;height:16px}
+  .empty{color:var(--muted);text-align:center;padding:30px 12px}
+
+  .type.grass{background:#16a34a; color:#08190c}
+  .type.fire{background:#f97316; color:#1b0d04}
+  .type.water{background:#0ea5e9; color:#041018}
+  .type.electric{background:#f59e0b; color:#1b1204}
+  .type.ice{background:#38bdf8; color:#051018}
+  .type.fighting{background:#ef4444; color:#2b0909}
+  .type.poison{background:#a855f7; color:#1d0a32}
+  .type.ground{background:#b45309; color:#fff}
+  .type.flying{background:#60a5fa; color:#0a1a2c}
+  .type.psychic{background:#ec4899; color:#2a0b1d}
+  .type.bug{background:#84cc16; color:#0d1a04}
+  .type.rock{background:#a3a3a3; color:#101010}
+  .type.ghost{background:#8b5cf6; color:#1a1134}
+  .type.dragon{background:#22d3ee; color:#07181b}
+  .type.dark{background:#475569; color:#eef2f7}
+  .type.steel{background:#94a3b8; color:#0e1218}
+  .type.fairy{background:#f472b6; color:#2a0e1d}
+  .type.normal{background:#9ca3af; color:#0e1218}
+
+  .types-pop{position:relative}
+  .popover{position:absolute;z-index:5;top:calc(100% + 6px);left:0;background:var(--bg);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:10px;display:none;min-width:280px}
+  .types-pop.open .popover{display:block}
+  .pop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .pop-grid label{background:var(--card);border:1px solid var(--border);padding:8px;border-radius:10px;display:flex;gap:8px;align-items:center;cursor:pointer}
+  .pop-grid input{margin:0}
+
+  dialog{width:min(900px,92vw);border:none;padding:0;border-radius:16px;overflow:hidden;background:var(--bg);color:var(--fg)}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  .modal-h{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .modal-b{padding:14px 16px;display:grid;gap:12px;grid-template-columns:240px 1fr}
+  .art{width:240px;height:240px;object-fit:contain;image-rendering:pixelated;border-radius:12px;background:var(--card);border:1px solid var(--border)}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:var(--chip);font-size:12px}
+  .badge.button{cursor:pointer; user-select:none}
+  .badge.button:focus{outline:2px solid var(--focus); outline-offset:2px}
+  .stats{display:grid;gap:8px}
+  .stat-row{display:grid;grid-template-columns:110px 1fr 40px;gap:8px;align-items:center}
+  .bar{height:10px;border-radius:999px;background:var(--chip);overflow:hidden}
+  .bar > i{display:block;height:100%;background:var(--accent)}
+  #abilityDialog .modal-b{grid-template-columns:1fr}
+
+  /* Matchups */
+  .matchups-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;margin-bottom:4px}
+  #m-matchups-wrap{display:none}
+  .tbl{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:14px}
+  .tbl th,.tbl td{padding:8px 10px;border:1px solid var(--border);background:var(--card)}
+  .tbl th{background:rgba(255,255,255,.03);text-align:left}
+  .tbl .group{font-weight:700;color:var(--muted);white-space:nowrap}
+  .tbl .pill{display:inline-block;margin:2px 4px 2px 0;padding:4px 8px;border-radius:999px;border:1px solid var(--border)}
+</style>
 </head>
 <body>
+  <header>
+    <h1>Seleziona i tuoi Pokémon</h1>
+    <div class="sub">PokéAPI · Sprite Showdown · Cry · Mega & Forme · Abilità ITA/EN · Debolezze/Resistenze</div>
+  </header>
 
-  <h1>Seleziona i tuoi Pokémon</h1>
+  <section class="toolbar" aria-label="Strumenti">
+    <div class="row">
+      <div class="search">
+        <input id="q" type="text" placeholder="Cerca per nome…" autocomplete="off" />
+      </div>
 
-  <input type="text" id="searchInput" placeholder="Cerca un Pokémon..." />
+      <select id="ordina" title="Ordina per">
+        <option value="dexAsc"># Pokédex ↑</option>
+        <option value="dexDesc"># Pokédex ↓</option>
+        <option value="nameAsc">Alfabetico A→Z</option>
+        <option value="nameDesc">Alfabetico Z→A</option>
+        <option value="bstDesc">Base Stat Totale ↓</option>
+        <option value="hpDesc">HP ↓</option>
+        <option value="atkDesc">Attacco ↓</option>
+        <option value="defDesc">Difesa ↓</option>
+        <option value="spaDesc">Att. Spec. ↓</option>
+        <option value="spdDesc">Dif. Spec. ↓</option>
+        <option value="speDesc">Velocità ↓</option>
+      </select>
 
-  <div class="options">
-    <!-- Contatore dei Pokémon selezionati -->
-    <div id="counter">Pokémon selezionati: 0</div>
-    <!-- Checkbox per nascondere i Pokémon spuntati -->
-    <div>
-      <input type="checkbox" id="hideSelected" />
-      <label for="hideSelected">Nascondi spuntati</label>
+      <select id="gen" title="Generazione">
+        <option value="all">Tutte le generazioni</option>
+      </select>
+
+      <div class="types-pop" id="typesPop">
+        <button id="btnTypes" class="btn" type="button">Filtra per tipo</button>
+        <div class="popover" role="dialog" aria-label="Filtri per tipo">
+          <div class="pop-grid" id="typesGrid"></div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+            <button class="btn" id="typesClear" type="button">Pulisci</button>
+            <span id="typesCount" class="sub"></span>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="grid" id="pokemonGrid"></div>
+    <div class="row" aria-label="Categorie">
+      <label class="chip" id="chipAll"><input id="showAll" type="checkbox" checked><span>Tutto</span></label>
+      <label class="chip" id="chipBase"><input id="showBase" type="checkbox" checked><span>Regionali</span></label>
+      <label class="chip" id="chipRegAlt"><input id="showRegAlt" type="checkbox" checked><span>Regionali Alternativi</span></label>
+      <label class="chip" id="chipMega"><input id="showMega" type="checkbox" checked><span>Mega</span></label>
+      <label class="chip" id="chipGmax"><input id="showGmax" type="checkbox" checked><span>G-Max</span></label>
+      <label class="chip" id="chipLM"><input id="showLM" type="checkbox" checked><span>Leggendari/Mitici</span></label>
+      <label class="chip" id="chipOther"><input id="showOther" type="checkbox" checked><span>Altro</span></label>
 
-  <script>
-    const pokemonList = [
-      "Bulbasaur", "Ivysaur", "Venusaur", "Charmander", "Charmeleon", "Charizard",
-      "Squirtle", "Wartortle", "Blastoise", "Caterpie", "Metapod", "Butterfree",
-      "Weedle", "Kakuna", "Beedrill", "Pidgey", "Pidgeotto", "Pidgeot",
-      "Rattata", "Raticate", "Spearow", "Fearow", "Ekans", "Arbok",
-      "Pikachu", "Raichu", "Sandshrew", "Sandslash", "Nidoran♀", "Nidorina",
-      "Nidoqueen", "Nidoran♂", "Nidorino", "Nidoking", "Clefairy", "Clefable",
-      "Vulpix", "Ninetales", "Jigglypuff", "Wigglytuff", "Zubat", "Golbat",
-      "Oddish", "Gloom", "Vileplume", "Paras", "Parasect", "Venonat",
-      "Venomoth", "Diglett", "Dugtrio", "Meowth", "Persian", "Psyduck",
-      "Golduck", "Mankey", "Primeape", "Growlithe", "Arcanine", "Poliwag",
-      "Poliwhirl", "Poliwrath", "Abra", "Kadabra", "Alakazam", "Machop",
-      "Machoke", "Machamp", "Bellsprout", "Weepinbell", "Victreebel", "Tentacool",
-      "Tentacruel", "Geodude", "Graveler", "Golem", "Ponyta", "Rapidash",
-      "Slowpoke", "Slowbro", "Magnemite", "Magneton", "Farfetch’d", "Doduo",
-      "Dodrio", "Seel", "Dewgong", "Grimer", "Muk", "Shellder",
-      "Cloyster", "Gastly", "Haunter", "Gengar", "Onix", "Drowzee",
-      "Hypno", "Krabby", "Kingler", "Voltorb", "Electrode", "Exeggcute",
-      "Exeggutor", "Cubone", "Marowak", "Hitmonlee", "Hitmonchan", "Lickitung",
-      "Koffing", "Weezing", "Rhyhorn", "Rhydon", "Chansey", "Tangela",
-      "Kangaskhan", "Horsea", "Seadra", "Goldeen", "Seaking", "Staryu",
-      "Starmie", "Mr. Mime", "Scyther", "Jynx", "Electabuzz", "Magmar",
-      "Pinsir", "Tauros", "Magikarp", "Gyarados", "Lapras", "Ditto",
-      "Eevee", "Vaporeon", "Jolteon", "Flareon", "Porygon", "Omanyte",
-      "Omastar", "Kabuto", "Kabutops", "Aerodactyl", "Snorlax", "Articuno",
-      "Zapdos", "Moltres", "Dratini", "Dragonair", "Dragonite", "Mewtwo",
-      "Mew"
-    ];
+      <label class="chip" id="shinyChip">
+        <input id="shiny" type="checkbox"><span>Shiny</span>
+      </label>
+      <label class="chip" id="hideChip">
+        <input id="hideSel" type="checkbox"><span>Nascondi selezionati</span>
+      </label>
 
-    const selected = {};
-    const grid = document.getElementById('pokemonGrid');
-    const searchInput = document.getElementById('searchInput');
-    const hideSelectedCheckbox = document.getElementById('hideSelected');
-    const counterDisplay = document.getElementById('counter');
+      <span class="counter" id="counter">0/0</span>
+    </div>
 
-    // --- NUOVA FUNZIONE per ottenere il nome corretto per l'URL dello sprite ---
-    function getSpriteName(pokemonName) {
-      let spriteName = pokemonName.toLowerCase();
-      // Gestisce i casi speciali
-      spriteName = spriteName.replace('♀', 'f').replace('♂', 'm'); // Nidoran
-      spriteName = spriteName.replace(/[.'\s]/g, ''); // Rimuove ., ' e spazi (es: Mr. Mime -> mrmime, Farfetch'd -> farfetchd)
-      // Caso speciale Porygon Z (non in Gen1 ma esempio) -> porygon-z
-      // spriteName = spriteName.replace(' ','-');
-      return spriteName;
+    <div class="row">
+      <button class="btn" id="selectAll" type="button">Seleziona filtrati</button>
+      <button class="btn" id="deselectAll" type="button">Deseleziona filtrati</button>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div id="status" class="sub" aria-live="polite"></div>
+    <div class="grid" id="grid" aria-label="Elenco Pokémon"></div>
+    <div id="sentinel" style="height:1px"></div>
+  </section>
+
+  <!-- Modal Dettagli -->
+  <dialog id="modal">
+    <div class="modal-h">
+      <div style="display:flex;align-items:center;gap:8px">
+        <strong id="m-title">Pokémon</strong>
+        <span class="badge" id="m-tag" style="display:none"></span>
+        <span class="badge" id="m-dex"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" id="m-cry" type="button" title="Riproduci verso">🔊 Verso</button>
+        <button class="btn" data-close type="button">Chiudi ✕</button>
+      </div>
+    </div>
+    <div class="modal-b">
+      <img id="m-art" class="art" alt="Artwork">
+      <div>
+        <div id="m-types" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+        <div id="m-flavor" class="sub" style="margin-bottom:8px"></div>
+
+        <h4 style="margin:10px 0 6px">Statistiche base</h4>
+        <div class="stats" id="m-stats"></div>
+
+        <h4 style="margin:10px 0 6px">Abilità</h4>
+        <div id="m-abilities" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+
+        <div class="matchups-head">
+          <button class="btn" id="btnMatchups" type="button">Debolezze & Resistenze</button>
+          <span class="sub">clicca per mostrare/nascondere la tabella</span>
+        </div>
+        <div id="m-matchups-wrap">
+          <table class="tbl" id="m-matchups"></table>
+        </div>
+
+        <h4 style="margin:10px 0 6px">Catena evolutiva</h4>
+        <div id="m-evo" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+
+        <h4 style="margin:10px 0 6px">Megaevoluzioni (nella catena)</h4>
+        <div id="m-mega" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+
+        <h4 style="margin:10px 0 6px">Forme regionali (nella catena)</h4>
+        <div id="m-forms-reg" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+
+        <h4 style="margin:10px 0 6px">Forme Gigamax (nella catena)</h4>
+        <div id="m-forms-gmax" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+
+        <h4 style="margin:10px 0 6px">Altre forme (nella catena)</h4>
+        <div id="m-forms-other" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Abilità -->
+  <dialog id="abilityDialog">
+    <div class="modal-h">
+      <strong id="ab-title">Abilità</strong>
+      <button class="btn" data-close type="button">Chiudi ✕</button>
+    </div>
+    <div class="modal-b">
+      <div>
+        <h4 style="margin:0 0 6px">Descrizione (IT)</h4>
+        <div class="sub" id="ab-text-it" style="margin-bottom:10px">—</div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+        <h4 style="margin:8px 0 6px">Dettaglio (EN)</h4>
+        <div class="sub" id="ab-text-en">—</div>
+      </div>
+    </div>
+  </dialog>
+
+<script>
+/* ======== Config / Stato ======== */
+const API = 'https://pokeapi.co/api/v2';
+const PAGE_SIZE = 60;
+const CONCURRENCY = 10;
+
+const grid = document.getElementById('grid');
+const sentinel = document.getElementById('sentinel');
+const statusEl = document.getElementById('status');
+const counterEl = document.getElementById('counter');
+
+const q = document.getElementById('q');
+const ordina = document.getElementById('ordina');
+const genSel = document.getElementById('gen');
+const shiny = document.getElementById('shiny');
+const hideSel = document.getElementById('hideSel');
+
+const chipIds = ['chipAll','chipBase','chipRegAlt','chipMega','chipGmax','chipLM','chipOther'];
+const showAll = document.getElementById('showAll');
+const showBase = document.getElementById('showBase');
+const showRegAlt = document.getElementById('showRegAlt');
+const showMega = document.getElementById('showMega');
+const showGmax = document.getElementById('showGmax');
+const showLM = document.getElementById('showLM');
+const showOther = document.getElementById('showOther');
+
+const typesPop = document.getElementById('typesPop');
+const btnTypes = document.getElementById('btnTypes');
+const typesGrid = document.getElementById('typesGrid');
+const typesClear = document.getElementById('typesClear');
+const typesCount = document.getElementById('typesCount');
+
+const selectAllBtn = document.getElementById('selectAll');
+const deselectAllBtn = document.getElementById('deselectAll');
+
+const modal = document.getElementById('modal');
+const mTitle = document.getElementById('m-title');
+const mDex   = document.getElementById('m-dex');
+const mArt   = document.getElementById('m-art');
+const mTypes = document.getElementById('m-types');
+const mStats = document.getElementById('m-stats');
+const mAbilities = document.getElementById('m-abilities');
+const mFlavor = document.getElementById('m-flavor');
+const mEvo = document.getElementById('m-evo');
+const mMega = document.getElementById('m-mega');
+const mFormsReg = document.getElementById('m-forms-reg');
+const mFormsGmax = document.getElementById('m-forms-gmax');
+const mFormsOther = document.getElementById('m-forms-other');
+const btnMatchups = document.getElementById('btnMatchups');
+const mMatchupsWrap = document.getElementById('m-matchups-wrap');
+const mMatchups = document.getElementById('m-matchups');
+const mCryBtn = document.getElementById('m-cry');
+const mTag = document.getElementById('m-tag');
+
+const abilityDialog = document.getElementById('abilityDialog');
+const abTitle = document.getElementById('ab-title');
+const abTextIt = document.getElementById('ab-text-it');
+const abTextEn = document.getElementById('ab-text-en');
+
+const list = []; // specie base: {id,name}
+const genBySpecies = new Map(); // speciesName -> generation name
+const typeIndex = new Map(); // type -> Set(pokemon.name)
+const pkmCache = new Map(); // pokemon/{name}
+const spCache  = new Map(); // species/{name}
+const abilityCache = new Map(); // ability/{name}
+const formCache = new Map(); // pokemon-form/{name}
+const typeDataCache = new Map(); // type/{name}
+const selected = new Set();
+
+const TYPES = ['normal','fire','water','electric','grass','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
+const activeTypes = new Set();
+
+let filtered = [];
+let page = 0, observer;
+let audio = new Audio();
+
+let formsIndexed = false;
+const formsList = []; // {id: speciesId, name: formName, isForm:true, base: speciesName, cat:'regionalAlt'|'mega'|'gmax'|'other'}
+
+/* ======== Utility ======== */
+const fmtDex = id => '#' + String(id).padStart(4,'0');
+const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : s;
+const norm = s => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'');
+function el(tag, attrs={}, children=[]){
+  const e=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k==='class') e.className=v;
+    else if(k==='text') e.textContent=v;
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else if(v!==undefined&&v!==null) e.setAttribute(k,v);
+  }
+  children.forEach(c=>e.appendChild(c));
+  return e;
+}
+function limiter(max){ let act=0, q=[]; const next=()=>{ if(act>=max||!q.length) return;
+  act++; const {fn,res,rej}=q.shift(); Promise.resolve().then(fn).then(res,rej).finally(()=>{act--;next()}); };
+  return fn=>new Promise((res,rej)=>{ q.push({fn,res,rej}); next(); });
+}
+const limit = limiter(CONCURRENCY);
+function status(msg){ statusEl.textContent = msg || ''; }
+function ensureDialogSupport(dlg){
+  if(typeof dlg.showModal!=='function'){
+    dlg.showModal = ()=> dlg.setAttribute('open','');
+    dlg.close = ()=> dlg.removeAttribute('open');
+  }
+}
+ensureDialogSupport(modal);
+ensureDialogSupport(abilityDialog);
+
+// Close dialogs by [data-close] and backdrop
+document.addEventListener('click', (e)=>{
+  if(e.target.matches('[data-close]')){
+    const dlg = e.target.closest('dialog'); if(dlg) dlg.close();
+  }
+});
+[modal, abilityDialog].forEach(dlg=>{
+  dlg.addEventListener('click', (e)=>{ if(e.target===dlg) dlg.close(); });
+});
+
+function escapeHTML(s){ return s?.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])) || ''; }
+function highlightNumerics(text){
+  const esc = escapeHTML(text||'');
+  return esc.replace(/(\b\d+(?:\.\d+)?\s*%?|\bx\s*\d+(?:\.\d+)?)/gi,'<strong>$1</strong>');
+}
+const isRegionalName = n => /-(alola|galar|hisui|paldea)\b/i.test(n);
+const isGmaxName     = n => /-gmax\b/i.test(n);
+const isMegaName     = n => /-mega\b/i.test(n);
+
+/* ======== Counter ======== */
+function updateCounter(){
+  const den = filtered.length;
+  const fset = new Set(filtered.map(x=>x.name));
+  let num = 0; for(const n of selected){ if(fset.has(n)) num++; }
+  counterEl.textContent = `${num}/${den}`;
+}
+
+/* ======== Fetch base ======== */
+async function fetchAllSpecies(){
+  status('Carico elenco specie…');
+  const data = await fetch(`${API}/pokemon-species?limit=20000&offset=0`).then(r=>r.json());
+  for(const s of data.results){
+    const id = +(s.url.match(/\/pokemon-species\/(\d+)\//)||[])[1];
+    if(id) list.push({id, name:s.name});
+  }
+  list.sort((a,b)=>a.id-b.id);
+}
+async function fetchGenerations(){
+  status('Carico generazioni…');
+  const gens = (await fetch(`${API}/generation?limit=100`).then(r=>r.json())).results;
+  gens.forEach((g,i)=> genSel.appendChild(el('option',{value:g.name,text:`Gen ${i+1}`})));
+  await Promise.all(gens.map(g=>limit(async()=>{
+    const d = await fetch(g.url).then(r=>r.json());
+    for(const sp of d.pokemon_species){ genBySpecies.set(sp.name, g.name); }
+  })));
+}
+async function getTypeSet(type){
+  if(typeIndex.has(type)) return typeIndex.get(type);
+  const d = await fetch(`${API}/type/${type}`).then(r=>r.json());
+  const set = new Set(d.pokemon.map(p=>p.pokemon.name));
+  typeIndex.set(type, set);
+  return set;
+}
+async function getTypeData(type){
+  if(typeDataCache.has(type)) return typeDataCache.get(type);
+  const d = await fetch(`${API}/type/${type}`).then(r=>r.json());
+  typeDataCache.set(type, d);
+  return d;
+}
+async function getPokemon(name){
+  if(pkmCache.has(name)) return pkmCache.get(name);
+  const d = await fetch(`${API}/pokemon/${name}`).then(r=>r.json()).catch(()=>null);
+  pkmCache.set(name, d); return d;
+}
+async function getSpecies(name){
+  if(spCache.has(name)) return spCache.get(name);
+  const d = await fetch(`${API}/pokemon-species/${name}`).then(r=>r.json()).catch(()=>null);
+  spCache.set(name, d); return d;
+}
+async function getEvolutionChain(url){
+  const data = await fetch(url).then(r=>r.json()).catch(()=>null);
+  if(!data) return [];
+  const out=[]; (function walk(n){ if(!n) return; out.push(n.species.name); (n.evolves_to||[]).forEach(walk); })(data.chain);
+  return out;
+}
+async function getAbility(name){
+  if(abilityCache.has(name)) return abilityCache.get(name);
+  const d = await fetch(`${API}/ability/${name}`).then(r=>r.json()).catch(()=>null);
+  abilityCache.set(name, d); return d;
+}
+async function getForm(formName){
+  if(formCache.has(formName)) return formCache.get(formName);
+  const d = await fetch(`${API}/pokemon-form/${formName}`).then(r=>r.json()).catch(()=>null);
+  formCache.set(formName, d); return d;
+}
+
+/* ======== Forme alternative index ======== */
+let formsIndexingPromise = null;
+async function ensureFormsIndex(){
+  if(formsIndexed) return;
+  if(!formsIndexingPromise){
+    formsIndexingPromise = (async ()=>{
+      status('Indicizzo forme…');
+      await Promise.all(list.map(s=>limit(async()=>{
+        const sp = await getSpecies(s.name);
+        (sp?.varieties||[]).forEach(v=>{
+          const n = v.pokemon?.name || '';
+          if(v.is_default) return;
+          const cat = isMegaName(n) ? 'mega' : (isGmaxName(n) ? 'gmax' : (isRegionalName(n) ? 'regionalAlt' : 'other'));
+          formsList.push({id: sp.id, name: n, isForm: true, base: s.name, cat});
+        });
+      })));
+      formsIndexed = true;
+      status('');
+    })();
+  }
+  return formsIndexingPromise;
+}
+
+/* ======== Filtri ======== */
+function applyFilters(){
+  const term = norm(q.value.trim());
+  const wantGen = genSel.value;
+
+  const needForms = showRegAlt.checked || showMega.checked || showGmax.checked || showOther.checked || showLM.checked || showAll.checked;
+  const ensure = needForms ? ensureFormsIndex() : Promise.resolve();
+  ensure.then(async ()=>{
+    // Sincronizza "Tutto" rispetto agli altri
+    const allOn = showBase.checked && showRegAlt.checked && showMega.checked && showGmax.checked && showLM.checked && showOther.checked;
+    if(showAll.checked !== allOn){ showAll.checked = allOn; syncChipsUI(); }
+
+    // Se showAll viene acceso manualmente -> accendi tutti
+    if(showAll.clickedFlag){ // flag temporanea settata dal listener
+      showBase.checked = showRegAlt.checked = showMega.checked = showGmax.checked = showLM.checked = showOther.checked = true;
+      showAll.clickedFlag = false;
     }
-    // --- FINE NUOVA FUNZIONE ---
 
-    function updateCounter() {
-      const count = Object.values(selected).filter(val => val).length;
-      counterDisplay.innerText = `Pokémon selezionati: ${count}`;
-    }
+    // costruiamo il pool come UNIONE delle categorie selezionate
+    const poolMap = new Map(); // name -> {id,name,isForm?,base?,cat?}
+    const addArr = arr => arr.forEach(x=> poolMap.set(x.name, x));
 
-    function renderPokemon() {
-      const search = searchInput.value.toLowerCase();
-      const hideSelected = hideSelectedCheckbox.checked;
-      grid.innerHTML = ''; // Pulisce la griglia
+    if(showBase.checked) addArr(list);
+    if(showRegAlt.checked) addArr(formsList.filter(f=>f.cat==='regionalAlt'));
+    if(showMega.checked)   addArr(formsList.filter(f=>f.cat==='mega'));
+    if(showGmax.checked)   addArr(formsList.filter(f=>f.cat==='gmax'));
+    if(showOther.checked)  addArr(formsList.filter(f=>f.cat==='other'));
 
-      let filteredList = pokemonList.filter(name => name.toLowerCase().includes(search));
-      if (hideSelected) {
-        filteredList = filteredList.filter(name => !selected[name]);
-      }
-
-      filteredList.forEach(name => {
-        const card = document.createElement('div');
-        card.className = 'card' + (selected[name] ? ' selected' : '');
-
-        // --- MODIFICA per aggiungere lo sprite ---
-        const spriteName = getSpriteName(name);
-        const spriteUrl = `https://play.pokemonshowdown.com/sprites/ani/${spriteName}.gif`;
-
-        // Controlla se lo sprite esiste, altrimenti usa un placeholder o nascondilo
-        // Nota: questo controllo base non previene tutti gli errori 404,
-        // una gestione più robusta richiederebbe onerror sull'immagine.
-        // Per semplicità, assumiamo che gli URL siano corretti per Gen1.
-
-        card.innerHTML = `
-          <img src="${spriteUrl}" alt="Sprite di ${name}" loading="lazy">
-          <input type="checkbox" ${selected[name] ? 'checked' : ''} >
-          <span>${name}</span>
-        `;
-        // --- FINE MODIFICA ---
-
-        card.onclick = () => {
-          selected[name] = !selected[name];
-          // Ri-renderizza per aggiornare lo stato visivo e applicare i filtri
-          renderPokemon();
-          // updateCounter non è più necessario qui perché renderPokemon lo chiama già alla fine
-        };
-        grid.appendChild(card);
+    if(showLM.checked){
+      // includi tutte le specie e forme che sono leggendari/mitici
+      const allEntries = list.concat(formsList);
+      // carica species per i base delle voci da controllare (deduplicate per base)
+      const bases = [...new Set(allEntries.map(e=> e.isForm ? e.base : e.name))];
+      await Promise.all(bases.map(b=>limit(()=>getSpecies(b))));
+      allEntries.forEach(e=>{
+        const base = e.isForm ? e.base : e.name;
+        const sp = spCache.get(base);
+        if(sp && (sp.is_legendary || sp.is_mythical)) poolMap.set(e.name, e);
       });
-
-      updateCounter(); // Aggiorna il contatore dopo aver renderizzato
     }
 
-    // Aggiungiamo gli event listener
-    searchInput.addEventListener('input', renderPokemon);
-    hideSelectedCheckbox.addEventListener('change', renderPokemon);
+    // array finale dal pool
+    let arr = Array.from(poolMap.values());
 
-    // Primo rendering all'avvio
-    renderPokemon();
-  </script>
+    // ricerca per nome
+    if(term){ arr = arr.filter(s=> norm(s.name).includes(term)); }
+
+    // filtro generazione (sulla specie base)
+    if(wantGen!=='all'){
+      arr = arr.filter(s=> genBySpecies.get(s.isForm ? s.base : s.name)===wantGen);
+    }
+
+    // filtro per tipi (AND tra tipi scelti)
+    const tps = [...activeTypes];
+    if(tps.length){
+      status('Filtro per tipo…');
+      const sets = await Promise.all(tps.map(getTypeSet));
+      arr = arr.filter(s => sets.every(set=> set.has(s.name)));
+    }
+
+    filtered = arr;
+    sortFiltered();
+    resetAndRender();
+    status('');
+  });
+}
+
+function sortFiltered(){
+  const key = ordina.value;
+  filtered.sort((a,b)=>{
+    if(key==='dexAsc') return a.id-b.id;
+    if(key==='dexDesc') return b.id-a.id;
+    if(key==='nameAsc') return a.name.localeCompare(b.name);
+    if(key==='nameDesc') return b.name.localeCompare(a.name);
+    const da = pkmCache.get(a.name), db = pkmCache.get(b.name);
+    const sa = statByKey(da,key), sb = statByKey(db,key);
+    return sb-sa;
+  });
+}
+function statByKey(d,key){
+  if(!d) return -Infinity;
+  const s = Object.fromEntries(d.stats.map(x=>[x.stat.name,x.base_stat]));
+  const bst = (s['hp']||0)+(s['attack']||0)+(s['defense']||0)+(s['special-attack']||0)+(s['special-defense']||0)+(s['speed']||0);
+  if(key==='bstDesc') return bst;
+  if(key==='hpDesc') return s['hp']||0;
+  if(key==='atkDesc') return s['attack']||0;
+  if(key==='defDesc') return s['defense']||0;
+  if(key==='spaDesc') return s['special-attack']||0;
+  if(key==='spdDesc') return s['special-defense']||0;
+  if(key==='speDesc') return s['speed']||0;
+  return -Infinity;
+}
+
+/* ======== Rendering ======== */
+function resetAndRender(){
+  page=0; grid.innerHTML='';
+  if(observer) observer.disconnect();
+  renderNextPage(); setupObserver();
+  updateCounter();
+}
+function setupObserver(){
+  observer = new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting) renderNextPage(); });
+  },{rootMargin:'800px 0px'});
+  observer.observe(sentinel);
+}
+async function renderNextPage(){
+  const start = page*PAGE_SIZE;
+  if(start>=filtered.length) return;
+  const end = Math.min(start+PAGE_SIZE, filtered.length);
+  const slice = filtered.slice(start,end);
+  page++;
+
+  const frag = document.createDocumentFragment();
+  for(const s of slice){
+    const card = renderCard(s);
+    frag.appendChild(card);
+    limit(async ()=>{
+      const d = await getPokemon(s.name);
+      if(!d) return;
+      hydrateCard(card,s,d);
+    });
+  }
+  grid.appendChild(frag);
+}
+function renderCard(spec){
+  const {id,name} = spec;
+  const isSel = selected.has(name);
+  const card = el('div',{class:'card',role:'checkbox',tabindex:'0','aria-checked':String(isSel),'data-name':name});
+  const img = el('img',{class:'sprite',alt:`Sprite di ${name}`,width:72,height:72});
+  const meta = el('div',{class:'meta'},[
+    el('div',{},[
+      el('div',{class:'name',text:cap(name.replaceAll('-',' '))}),
+      el('div',{class:'dex',text:fmtDex(id)})
+    ]),
+    el('div',{class:'types'})
+  ]);
+  // checkbox senza attributo 'checked' quando false (evita il bug visivo)
+  const cb = el('input',{type:'checkbox'});
+  cb.checked = isSel;
+  const actions = el('div',{class:'actions'},[
+    el('label',{class:'pill'},[
+      cb,
+      el('span',{text:'Seleziona'})
+    ]),
+    el('button',{class:'btn',type:'button',onclick:(e)=>{e.stopPropagation(); openDetails(name);}},[document.createTextNode('Dettagli')]),
+    el('button',{class:'btn',type:'button',onclick:(e)=>{e.stopPropagation(); playCryFor(name);}},[document.createTextNode('🔊 Audio')])
+  ]);
+  card.append(img,meta,actions);
+
+  card.addEventListener('click', (ev)=>{
+    const t = ev.target;
+    if(t.tagName==='INPUT') return;
+    toggleSelect(name, card);
+  });
+  cb.addEventListener('change', ()=> toggleSelect(name, card));
+
+  card.addEventListener('keydown',(ev)=>{
+    if(ev.key===' '||ev.key==='Enter'){ ev.preventDefault(); toggleSelect(name, card); }
+    if(ev.key==='d'){ openDetails(name); }
+  });
+
+  if(hideSel.checked && isSel) card.style.display='none';
+  return card;
+}
+function hydrateCard(card,spec,d){
+  const img = card.querySelector('img.sprite');
+  const typesEl = card.querySelector('.types');
+  const isShiny = shiny.checked;
+
+  const showdownFront = d.sprites.other?.showdown?.[isShiny?'front_shiny':'front_default'];
+  const fallback = d.sprites.other?.['official-artwork']?.front_default || d.sprites.front_default || d.sprites.front_shiny;
+  img.src = showdownFront || fallback || '';
+  img.onerror = ()=>{ img.onerror=null; if(fallback) img.src=fallback; };
+
+  typesEl.innerHTML='';
+  d.types.forEach(t=> typesEl.appendChild(el('span',{class:`type ${t.type.name}`,text:cap(t.type.name)})));
+}
+function toggleSelect(name,card){
+  if(selected.has(name)) selected.delete(name); else selected.add(name);
+  const isSel = selected.has(name);
+  if(card){
+    card.setAttribute('aria-checked', String(isSel));
+    const cb = card.querySelector('input[type="checkbox"]');
+    if(cb) cb.checked = isSel;
+    if(hideSel.checked) card.style.display = isSel ? 'none' : '';
+  }
+  updateCounter();
+}
+
+/* ======== Dettagli (con Mega/forme e tabella matchups) ======== */
+async function openDetails(name){
+  const d = await getPokemon(name);
+  if(!d) return;
+
+  const spName = d.species?.name || name;
+  const sp = await getSpecies(spName);
+
+  const nice = (sp?.names||[]).find(n=>n.language?.name==='it')?.name || cap(spName.replaceAll('-',' '));
+  mTitle.textContent = (name===spName) ? nice : `${nice} (${formatFormLabel(name)})`;
+  mDex.textContent = fmtDex(d.id);
+
+  const art = d.sprites.other?.['official-artwork']?.front_default || d.sprites.other?.showdown?.front_default || d.sprites.front_default;
+  mArt.src = art || '';
+  mArt.onerror = ()=>{ mArt.onerror=null; mArt.src=d.sprites.front_default||d.sprites.front_shiny||''; };
+
+  if(sp && (sp.is_legendary || sp.is_mythical)){ mTag.style.display='inline-flex'; mTag.textContent = sp.is_mythical?'Mitico':'Leggendario'; }
+  else mTag.style.display='none';
+
+  mTypes.innerHTML='';
+  d.types.forEach(t=> mTypes.appendChild(el('span',{class:`type ${t.type.name}`,text:cap(t.type.name)})));
+
+  mFlavor.textContent = pickItalianFlavor(sp?.flavor_text_entries) || '—';
+
+  // STAT
+  mStats.innerHTML='';
+  const order=[['hp','HP'],['attack','Attacco'],['defense','Difesa'],['special-attack','Att. Spec.'],['special-defense','Dif. Spec.'],['speed','Velocità']];
+  for(const [k,label] of order){
+    const val = (d.stats.find(x=>x.stat.name===k)||{}).base_stat||0;
+    const pct = Math.min(1, val/180);
+    mStats.appendChild(el('div',{class:'stat-row'},[
+      el('div',{text:label}),
+      el('div',{class:'bar'},[el('i',{style:`width:${(pct*100).toFixed(0)}%`})]),
+      el('div',{style:'text-align:right',text:String(val)})
+    ]));
+  }
+
+  // ABILITÀ (ITA + EN dettagli)
+  mAbilities.innerHTML='';
+  for(const a of d.abilities){
+    const abName = a.ability.name;
+    const chip = el('span',{class:'badge button',text:'…', role:'button', tabindex:'0', title:'Dettagli abilità'});
+    chip.addEventListener('keydown', ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); chip.click(); }});
+    mAbilities.appendChild(chip);
+    getAbility(abName).then(ad=>{
+      const itName = (ad?.names||[]).find(n=>n.language?.name==='it')?.name
+                   || (ad?.names||[]).find(n=>n.language?.name==='en')?.name
+                   || abName.replaceAll('-',' ');
+      chip.textContent = (a.is_hidden ? '(Nasc.) ' : '') + itName;
+      chip.onclick = ()=> openAbilityDialog(ad, itName);
+    });
+  }
+
+  // Matchups: reset & toggle handler
+  mMatchupsWrap.style.display = 'none';
+  mMatchups.innerHTML = '';
+  btnMatchups.onclick = async ()=>{
+    if(mMatchupsWrap.style.display==='none' || mMatchups.innerHTML===''){
+      await renderMatchupsTable(d.types.map(t=>t.type.name));
+      mMatchupsWrap.style.display = 'block';
+    } else {
+      mMatchupsWrap.style.display = 'none';
+    }
+  };
+
+  // EVOLUZIONI
+  mEvo.innerHTML='';
+  if(sp?.evolution_chain?.url){
+    const chain = await getEvolutionChain(sp.evolution_chain.url);
+    chain.forEach(n=>{
+      const badge = el('span',{class:'badge button', text:cap(n.replaceAll('-',' ')), role:'button', tabindex:'0', title:'Apri dettagli'});
+      badge.onclick = ()=> openDetails(n);
+      badge.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDetails(n); }});
+      mEvo.appendChild(badge);
+    });
+  } else { mEvo.textContent='—'; }
+
+  // MEGA (catena)
+  mMega.innerHTML='';
+  const megas = await collectChainMegas(sp);
+  if(megas.length){
+    for(const m of megas){
+      const form = await getForm(m);
+      const itForm = (form?.names||[]).find(n=>n.language?.name==='it')?.name || formatFormLabel(m);
+      const badge = el('span',{class:'badge button', text:itForm, role:'button', tabindex:'0', title:'Apri dettagli Mega'});
+      badge.onclick = ()=> openDetails(m);
+      badge.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDetails(m);} });
+      mMega.appendChild(badge);
+    }
+  } else { mMega.textContent = '—'; }
+
+  // FORME (catena) separate per categoria
+  mFormsReg.innerHTML=''; mFormsGmax.innerHTML=''; mFormsOther.innerHTML='';
+  const byCat = await collectChainFormsByCat(sp);
+  renderFormBadges(byCat.regionalAlt, mFormsReg, formatFormAltLabel);
+  renderFormBadges(byCat.gmax,        mFormsGmax, formatFormAltLabel);
+  renderFormBadges(byCat.other,       mFormsOther, formatFormAltLabel);
+
+  // Audio
+  const cryLatest = d.cries?.latest || null;
+  const baseName = spName.toLowerCase();
+  const showdownFallback = `https://play.pokemonshowdown.com/audio/cries/src/${baseName}.wav`;
+  mCryBtn.onclick = ()=> playCry(cryLatest || showdownFallback);
+
+  modal.showModal();
+}
+
+function renderFormBadges(list, container, labeller){
+  if(!list.length){ container.textContent='—'; return; }
+  list.forEach(async f=>{
+    const form = await getForm(f).catch(()=>null);
+    const itForm = (form?.names||[]).find(n=>n.language?.name==='it')?.name || labeller(f);
+    const badge = el('span',{class:'badge button', text:itForm, role:'button', tabindex:'0', title:'Apri dettagli forma'});
+    badge.onclick = ()=> openDetails(f);
+    badge.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDetails(f);} });
+    container.appendChild(badge);
+  });
+}
+
+function pickItalianFlavor(entries){
+  if(!entries) return '';
+  const it = [...entries].filter(e=>e.language?.name==='it').pop();
+  return it?.flavor_text?.replace(/\s+/g,' ') || '';
+}
+
+async function renderMatchupsTable(typeNames){
+  const mult = {}; TYPES.forEach(t=> mult[t]=1);
+  for(const t of typeNames){
+    const td = await getTypeData(t);
+    td.damage_relations.double_damage_from.forEach(x=> mult[x.name]*=2);
+    td.damage_relations.half_damage_from.forEach(x=> mult[x.name]*=0.5);
+    td.damage_relations.no_damage_from.forEach(x=> mult[x.name]*=0);
+  }
+  const groups = { 'x4':[], 'x2':[], 'x1':[], 'x0.5':[], 'x0.25':[], 'x0':[] };
+  for(const [t,v] of Object.entries(mult)){
+    if(v===0) groups['x0'].push(t);
+    else if(v>=3.9) groups['x4'].push(t);
+    else if(v>=1.9) groups['x2'].push(t);
+    else if(v<=0.26) groups['x0.25'].push(t);
+    else if(v<=0.6) groups['x0.5'].push(t);
+    else groups['x1'].push(t);
+  }
+  Object.values(groups).forEach(a=>a.sort());
+  mMatchups.innerHTML = '';
+  const header = el('tr',{},[ el('th',{text:'Categoria'}), el('th',{text:'Tipi'}) ]);
+  mMatchups.appendChild(header);
+  const row = (label, arr)=>{ if(!arr.length) return;
+    mMatchups.appendChild(el('tr',{},[
+      el('td',{class:'group',text:label}),
+      el('td',{}, arr.map(t=> el('span',{class:`pill type ${t}`,text:cap(t)})))
+    ]));
+  };
+  row('Debolezze ×4', groups['x4']);
+  row('Debolezze ×2', groups['x2']);
+  row('Neutre ×1',    groups['x1']);
+  row('Resistenze ×½',groups['x0.5']);
+  row('Resistenze ×¼',groups['x0.25']);
+  row('Immunità ×0',  groups['x0']);
+}
+
+/* Mega & Forme raccolta su tutta la catena */
+async function collectChainMegas(species){
+  const set = new Set();
+  if(species?.evolution_chain?.url){
+    const names = await getEvolutionChain(species.evolution_chain.url);
+    const specs = await Promise.all(names.map(n=>getSpecies(n)));
+    specs.forEach(sp=>{
+      (sp?.varieties||[]).forEach(v=>{
+        const n = v.pokemon?.name || '';
+        if(isMegaName(n)) set.add(n);
+      });
+    });
+  }
+  return [...set];
+}
+async function collectChainFormsByCat(species){
+  const out = {regionalAlt:[], gmax:[], other:[]};
+  if(species?.evolution_chain?.url){
+    const names = await getEvolutionChain(species.evolution_chain.url);
+    const specs = await Promise.all(names.map(n=>getSpecies(n)));
+    specs.forEach(sp=>{
+      (sp?.varieties||[]).forEach(v=>{
+        const n = v.pokemon?.name || '';
+        if(v.is_default || isMegaName(n)) return;
+        if(isRegionalName(n)) out.regionalAlt.push(n);
+        else if(isGmaxName(n)) out.gmax.push(n);
+        else out.other.push(n);
+      });
+    });
+  }
+  out.regionalAlt = [...new Set(out.regionalAlt)];
+  out.gmax        = [...new Set(out.gmax)];
+  out.other       = [...new Set(out.other)];
+  return out;
+}
+
+function formatFormLabel(formName){
+  const base = formName.replace(/-mega(-[a-z])?/,'').replaceAll('-',' ');
+  const suffix = formName.includes('-mega-') ? ' ' + formName.split('-').pop().toUpperCase() : '';
+  return `Mega ${cap(base)}${suffix}`;
+}
+function formatFormAltLabel(formName){
+  const parts = formName.split('-');
+  const base = cap(parts[0]);
+  const rest = parts.slice(1).join(' ');
+  let tag = rest;
+  if(/gmax/i.test(rest)) tag = 'Gigamax';
+  else if(/alola/i.test(rest)) tag = 'Alola';
+  else if(/galar/i.test(rest)) tag = 'Galar';
+  else if(/hisui/i.test(rest)) tag = 'Hisui';
+  else if(/paldea/i.test(rest)) tag = 'Paldea';
+  else tag = cap(rest.replace(/-/g,' '));
+  return `${base} (${tag})`;
+}
+
+/* Abilità dialog: IT + EN dettagli */
+function openAbilityDialog(ad, fallbackName){
+  ensureDialogSupport(abilityDialog);
+  const itName = (ad?.names||[]).find(n=>n.language?.name==='it')?.name || fallbackName;
+
+  const itFlavor = [...(ad?.flavor_text_entries||[])].reverse().find(e=>e.language?.name==='it')?.flavor_text;
+  const itLong  = (ad?.effect_entries||[]).find(e=>e.language?.name==='it')?.effect;
+  const enLong  = (ad?.effect_entries||[]).find(e=>e.language?.name==='en')?.effect
+               || (ad?.effect_entries||[]).find(e=>e.language?.name==='en')?.short_effect;
+
+  abTitle.textContent = itName;
+  abTextIt.textContent = (itFlavor || itLong || '—').replace(/\s+/g,' ');
+  abTextEn.innerHTML = highlightNumerics((enLong || '—').replace(/\s+/g,' '));
+  abilityDialog.showModal();
+}
+
+/* Audio */
+function playCry(url){ if(!url) return; try{ audio.pause(); audio = new Audio(url); audio.play().catch(()=>{});}catch{} }
+async function playCryFor(name){
+  const d = await getPokemon(name);
+  const base = d?.species?.name?.toLowerCase() || name.toLowerCase();
+  const fallback=`https://play.pokemonshowdown.com/audio/cries/src/${base}.wav`;
+  playCry(d?.cries?.latest || fallback);
+}
+
+/* Types popover */
+function buildTypesPopover(){
+  typesGrid.innerHTML='';
+  TYPES.forEach(t=>{
+    const lab = el('label',{},[
+      el('input',{type:'checkbox'}),
+      el('span',{text:cap(t)})
+    ]);
+    lab.querySelector('input').addEventListener('change',(e)=>{
+      if(e.target.checked) activeTypes.add(t); else activeTypes.delete(t);
+      typesCount.textContent = activeTypes.size ? `${activeTypes.size} selezionati` : '';
+      applyFilters();
+    });
+    typesGrid.appendChild(lab);
+  });
+  typesCount.textContent = '';
+}
+btnTypes.addEventListener('click', ()=>{ typesPop.classList.toggle('open'); });
+document.addEventListener('click',(e)=>{ if(!typesPop.contains(e.target)) typesPop.classList.remove('open'); });
+typesClear.addEventListener('click', ()=>{ activeTypes.clear(); buildTypesPopover(); applyFilters(); });
+
+/* Eventi UI: categorie */
+function syncChipsUI(){
+  document.getElementById('chipAll').classList.toggle('active', showAll.checked);
+  document.getElementById('chipBase').classList.toggle('active', showBase.checked);
+  document.getElementById('chipRegAlt').classList.toggle('active', showRegAlt.checked);
+  document.getElementById('chipMega').classList.toggle('active', showMega.checked);
+  document.getElementById('chipGmax').classList.toggle('active', showGmax.checked);
+  document.getElementById('chipLM').classList.toggle('active', showLM.checked);
+  document.getElementById('chipOther').classList.toggle('active', showOther.checked);
+}
+showAll.addEventListener('change', ()=>{ showAll.clickedFlag = true; applyFilters(); });
+[showBase,showRegAlt,showMega,showGmax,showLM,showOther].forEach(inp=>{
+  inp.addEventListener('change', ()=>{ syncChipsUI(); applyFilters(); });
+});
+
+/* Eventi UI: altri */
+q.addEventListener('input', ()=>{ applyFilters(); });
+genSel.addEventListener('change', ()=>{ applyFilters(); });
+ordina.addEventListener('change', ()=>{
+  const need = ['bstDesc','hpDesc','atkDesc','defDesc','spaDesc','spdDesc','speDesc'].includes(ordina.value);
+  if(need){
+    const ahead = filtered.slice(0,400);
+    Promise.all(ahead.map(s=>limit(()=>getPokemon(s.name)))).then(()=>{ sortFiltered(); resetAndRender(); });
+  } else { sortFiltered(); resetAndRender(); }
+});
+shiny.addEventListener('change', ()=>{
+  document.getElementById('shinyChip').classList.toggle('active', shiny.checked);
+  document.querySelectorAll('.card').forEach(async card=>{
+    const name = card.getAttribute('data-name');
+    const d = await getPokemon(name); if(!d) return;
+    hydrateCard(card,{name,id:d.id},d);
+  });
+});
+hideSel.addEventListener('change', ()=>{
+  document.getElementById('hideChip').classList.toggle('active', hideSel.checked);
+  document.querySelectorAll('.card').forEach(card=>{
+    const isSel = selected.has(card.getAttribute('data-name'));
+    card.style.display = (hideSel.checked && isSel) ? 'none' : '';
+  });
+});
+
+/* Seleziona / Deseleziona filtrati */
+function refreshVisibleChecksFor(namesSet){
+  document.querySelectorAll('.card').forEach(card=>{
+    const n = card.getAttribute('data-name');
+    if(!namesSet.has(n)) return;
+    const isSel = selected.has(n);
+    card.setAttribute('aria-checked', String(isSel));
+    const cb = card.querySelector('input[type="checkbox"]'); if(cb) cb.checked = isSel;
+    if(hideSel.checked) card.style.display = isSel ? 'none' : '';
+  });
+}
+selectAllBtn.addEventListener('click', ()=>{
+  const fset = new Set(filtered.map(x=>x.name));
+  filtered.forEach(s=> selected.add(s.name));
+  updateCounter(); refreshVisibleChecksFor(fset);
+});
+deselectAllBtn.addEventListener('click', ()=>{
+  const fset = new Set(filtered.map(x=>x.name));
+  filtered.forEach(s=> selected.delete(s.name));
+  updateCounter(); refreshVisibleChecksFor(fset);
+});
+
+/* Start */
+(async function start(){
+  try{
+    buildTypesPopover();
+    selected.clear(); updateCounter(); // parte deselezionato
+    await Promise.all([fetchAllSpecies(), fetchGenerations()]);
+    applyFilters();
+    // warmup
+    const warm = list.slice(0,120);
+    warm.forEach(s=>limit(()=>getPokemon(s.name)));
+  }catch(e){
+    status('Errore di rete. Riprova.');
+  }
+})();
+</script>
 </body>
 </html>
-
