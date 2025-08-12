@@ -2,8 +2,12 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Pokédex selezionatore</title>
+
+<link rel="preconnect" href="https://pokeapi.co" crossorigin>
+<link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
+
 <style>
   :root{
     --bg:#0b0f17; --fg:#e7e9ee; --muted:#9aa1ad; --card:#0f1522; --border:#1e2533;
@@ -18,6 +22,7 @@
     }
   }
   *{box-sizing:border-box}
+  html.no-scroll, html.no-scroll body{overflow:hidden}
   body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;}
   header{max-width:1100px;margin:20px auto 6px;padding:0 16px}
   h1{margin:0 0 6px;text-align:center;font-size:28px}
@@ -39,10 +44,20 @@
   .chip input:checked::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-size:12px;color:#fff}
   .chip span{font-size:13px}
   .chip.active{background:var(--chip-on); color:var(--chip-on-ink); border-color:transparent}
-  .btn{border:1px solid var(--border);background:var(--card);color:var(--fg);padding:9px 12px;border-radius:10px;cursor:pointer}
+
+  .btn{border:1px solid var(--border);background:var(--card);color:var(--fg);padding:9px 12px;border-radius:10px;cursor:pointer;touch-action:manipulation;transition:filter .15s ease, opacity .15s ease}
   .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
   .btn:hover{filter:brightness(1.05)}
   .btn:focus{outline:2px solid var(--focus);outline-offset:2px}
+  .btn[disabled]{opacity:.6;cursor:not-allowed}
+  .btn[aria-busy="true"]{position:relative}
+  .btn[aria-busy="true"]::after{
+    content:""; display:inline-block; width:14px; height:14px; margin-left:8px; vertical-align:-2px;
+    border:2px solid currentColor; border-right-color:transparent; border-radius:50%;
+    animation:spin .6s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
   .counter{margin-left:auto;color:var(--muted)}
 
   .wrap{max-width:1100px;margin:8px auto 16px;padding:0 16px}
@@ -52,13 +67,14 @@
       "img meta"
       "actions actions";
     gap:10px;align-items:center;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border);
-    transition:transform .12s ease; cursor:pointer; min-height:92px;
+    transition:transform .12s ease; cursor:pointer; min-height:92px; will-change:transform;
   }
   .card:hover{transform:translateY(-2px)}
   .card[aria-checked="true"]{outline:2px solid var(--accent)}
   .sprite{grid-area:img;width:72px;height:72px;image-rendering:pixelated;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.04)}
   .meta{grid-area:meta;min-width:0;display:flex;flex-direction:column;gap:6px}
-  .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .titleRow{display:flex;align-items:center;gap:8px;min-width:0}
+  .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
   .dex{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
   .types{display:flex;gap:6px;flex-wrap:wrap}
   .type{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--border)}
@@ -67,6 +83,15 @@
   .actions input[type="checkbox"]{width:16px;height:16px}
   .empty{color:var(--muted);text-align:center;padding:30px 12px}
 
+  /* Badge categoria */
+  .cat-badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
+  .cat-base{background:#334155;color:#e5e7eb}
+  .cat-regalt{background:#0ea5e9;color:#071018}
+  .cat-mega{background:#f97316;color:#1b0d04}
+  .cat-gmax{background:#a855f7;color:#1d0a32}
+  .cat-other{background:#94a3b8;color:#0e1218}
+
+  /* Tipi */
   .type.grass{background:#16a34a; color:#08190c}
   .type.fire{background:#f97316; color:#1b0d04}
   .type.water{background:#0ea5e9; color:#041018}
@@ -86,6 +111,7 @@
   .type.fairy{background:#f472b6; color:#2a0e1d}
   .type.normal{background:#9ca3af; color:#0e1218}
 
+  /* Popover tipi */
   .types-pop{position:relative}
   .popover{position:absolute;z-index:5;top:calc(100% + 6px);left:0;background:var(--bg);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:10px;display:none;min-width:280px}
   .types-pop.open .popover{display:block}
@@ -93,10 +119,25 @@
   .pop-grid label{background:var(--card);border:1px solid var(--border);padding:8px;border-radius:10px;display:flex;gap:8px;align-items:center;cursor:pointer}
   .pop-grid input{margin:0}
 
-  dialog{width:min(900px,92vw);border:none;padding:0;border-radius:16px;overflow:hidden;background:var(--bg);color:var(--fg)}
+  /* Dialog fissi + mobile */
+  dialog{
+    width:min(900px,92vw);
+    height:80vh;
+    border:none;
+    padding:0;
+    border-radius:16px;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--fg);
+    display:none;                /* chiuso di default */
+  }
+  dialog[open]{
+    display:grid;                /* mostrato solo quando è open */
+    grid-template-rows:auto 1fr; /* layout applicato qui */
+  }
   dialog::backdrop{background:rgba(0,0,0,.6)}
-  .modal-h{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
-  .modal-b{padding:14px 16px;display:grid;gap:12px;grid-template-columns:240px 1fr}
+  .modal-h{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border); background:var(--bg); position:sticky; top:0; z-index:2}
+  .modal-b{overflow:auto; padding:14px 16px;display:grid;gap:12px;grid-template-columns:240px 1fr; -webkit-overflow-scrolling:touch}
   .art{width:240px;height:240px;object-fit:contain;image-rendering:pixelated;border-radius:12px;background:var(--card);border:1px solid var(--border)}
   .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:var(--chip);font-size:12px}
   .badge.button{cursor:pointer; user-select:none}
@@ -115,6 +156,12 @@
   .tbl th{background:rgba(255,255,255,.03);text-align:left}
   .tbl .group{font-weight:700;color:var(--muted);white-space:nowrap}
   .tbl .pill{display:inline-block;margin:2px 4px 2px 0;padding:4px 8px;border-radius:999px;border:1px solid var(--border)}
+
+  @media (max-width: 640px){
+    dialog{width:100vw; height:90vh; border-radius:0}
+    .modal-b{grid-template-columns:1fr; padding:12px}
+    .art{width:min(60vw,280px); height:min(60vw,280px); justify-self:center}
+  }
 </style>
 </head>
 <body>
@@ -148,7 +195,7 @@
       </select>
 
       <div class="types-pop" id="typesPop">
-        <button id="btnTypes" class="btn" type="button">Filtra per tipo</button>
+        <button id="btnTypes" class="btn" type="button" aria-expanded="false" aria-controls="typesPop">Filtra per tipo</button>
         <div class="popover" role="dialog" aria-label="Filtri per tipo">
           <div class="pop-grid" id="typesGrid"></div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
@@ -160,13 +207,13 @@
     </div>
 
     <div class="row" aria-label="Categorie">
-      <label class="chip" id="chipAll"><input id="showAll" type="checkbox" checked><span>Tutto</span></label>
+      <label class="chip" id="chipAll"><input id="showAll" type="checkbox"><span>Tutto</span></label>
       <label class="chip" id="chipBase"><input id="showBase" type="checkbox" checked><span>Regionali</span></label>
-      <label class="chip" id="chipRegAlt"><input id="showRegAlt" type="checkbox" checked><span>Regionali Alternativi</span></label>
-      <label class="chip" id="chipMega"><input id="showMega" type="checkbox" checked><span>Mega</span></label>
-      <label class="chip" id="chipGmax"><input id="showGmax" type="checkbox" checked><span>G-Max</span></label>
-      <label class="chip" id="chipLM"><input id="showLM" type="checkbox" checked><span>Leggendari/Mitici</span></label>
-      <label class="chip" id="chipOther"><input id="showOther" type="checkbox" checked><span>Altro</span></label>
+      <label class="chip" id="chipRegAlt"><input id="showRegAlt" type="checkbox"><span>Regionali Alternativi</span></label>
+      <label class="chip" id="chipMega"><input id="showMega" type="checkbox"><span>Mega</span></label>
+      <label class="chip" id="chipGmax"><input id="showGmax" type="checkbox"><span>G-Max</span></label>
+      <label class="chip" id="chipLM"><input id="showLM" type="checkbox"><span>Leggendari/Mitici</span></label>
+      <label class="chip" id="chipOther"><input id="showOther" type="checkbox"><span>Altro</span></label>
 
       <label class="chip" id="shinyChip">
         <input id="shiny" type="checkbox"><span>Shiny</span>
@@ -200,7 +247,9 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn" id="m-cry" type="button" title="Riproduci verso">🔊 Verso</button>
-        <button class="btn" data-close type="button">Chiudi ✕</button>
+        <form method="dialog" style="display:inline">
+          <button class="btn" id="m-close" data-close type="submit">Chiudi ✕</button>
+        </form>
       </div>
     </div>
     <div class="modal-b">
@@ -245,7 +294,9 @@
   <dialog id="abilityDialog">
     <div class="modal-h">
       <strong id="ab-title">Abilità</strong>
-      <button class="btn" data-close type="button">Chiudi ✕</button>
+      <form method="dialog" style="display:inline">
+        <button class="btn" id="ab-close" data-close type="submit">Chiudi ✕</button>
+      </form>
     </div>
     <div class="modal-b">
       <div>
@@ -259,6 +310,23 @@
   </dialog>
 
 <script>
+/* ======== Utility dialog sicura ======== */
+const Dialog = {
+  open(dlg){
+    if(!dlg) return;
+    if(typeof dlg.showModal==='function'){ dlg.showModal(); }
+    else { dlg.setAttribute('open',''); }
+    dlg.setAttribute('aria-modal','true');
+    document.documentElement.classList.add('no-scroll');
+  },
+  close(dlg){
+    if(!dlg) return;
+    try{ dlg.close(); } catch { dlg.removeAttribute('open'); }
+    dlg.removeAttribute('aria-modal');
+    document.documentElement.classList.remove('no-scroll');
+  }
+};
+
 /* ======== Config / Stato ======== */
 const API = 'https://pokeapi.co/api/v2';
 const PAGE_SIZE = 60;
@@ -275,13 +343,12 @@ const genSel = document.getElementById('gen');
 const shiny = document.getElementById('shiny');
 const hideSel = document.getElementById('hideSel');
 
-const chipIds = ['chipAll','chipBase','chipRegAlt','chipMega','chipGmax','chipLM','chipOther'];
-const showAll = document.getElementById('showAll');
-const showBase = document.getElementById('showBase');
-const showRegAlt = document.getElementById('showRegAlt');
-const showMega = document.getElementById('showMega');
-const showGmax = document.getElementById('showGmax');
-const showLM = document.getElementById('showLM');
+const showAll   = document.getElementById('showAll');
+const showBase  = document.getElementById('showBase');   // specie base
+const showRegAlt= document.getElementById('showRegAlt'); // forme Alola/Galar/Hisui/Paldea
+const showMega  = document.getElementById('showMega');
+const showGmax  = document.getElementById('showGmax');
+const showLM    = document.getElementById('showLM');     // leggendari/mitici
 const showOther = document.getElementById('showOther');
 
 const typesPop = document.getElementById('typesPop');
@@ -332,15 +399,18 @@ const activeTypes = new Set();
 
 let filtered = [];
 let page = 0, observer;
-let audio = new Audio();
+let audio = null;
 
+let formsIndexingPromise = null;
 let formsIndexed = false;
-const formsList = []; // {id: speciesId, name: formName, isForm:true, base: speciesName, cat:'regionalAlt'|'mega'|'gmax'|'other'}
+const formsList = []; // {id,name,isForm:true,base,cat:'regionalAlt'|'mega'|'gmax'|'other'}
 
-/* ======== Utility ======== */
+/* ======== Helpers ======== */
 const fmtDex = id => '#' + String(id).padStart(4,'0');
 const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : s;
-const norm = s => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'');
+// diacritici compatibile
+const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
 function el(tag, attrs={}, children=[]){
   const e=document.createElement(tag);
   for(const [k,v] of Object.entries(attrs)){
@@ -358,35 +428,17 @@ function limiter(max){ let act=0, q=[]; const next=()=>{ if(act>=max||!q.length)
 }
 const limit = limiter(CONCURRENCY);
 function status(msg){ statusEl.textContent = msg || ''; }
-function ensureDialogSupport(dlg){
-  if(typeof dlg.showModal!=='function'){
-    dlg.showModal = ()=> dlg.setAttribute('open','');
-    dlg.close = ()=> dlg.removeAttribute('open');
-  }
-}
-ensureDialogSupport(modal);
-ensureDialogSupport(abilityDialog);
-
-// Close dialogs by [data-close] and backdrop
-document.addEventListener('click', (e)=>{
-  if(e.target.matches('[data-close]')){
-    const dlg = e.target.closest('dialog'); if(dlg) dlg.close();
-  }
-});
-[modal, abilityDialog].forEach(dlg=>{
-  dlg.addEventListener('click', (e)=>{ if(e.target===dlg) dlg.close(); });
-});
-
 function escapeHTML(s){ return s?.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])) || ''; }
 function highlightNumerics(text){
   const esc = escapeHTML(text||'');
   return esc.replace(/(\b\d+(?:\.\d+)?\s*%?|\bx\s*\d+(?:\.\d+)?)/gi,'<strong>$1</strong>');
 }
 const isRegionalName = n => /-(alola|galar|hisui|paldea)\b/i.test(n);
+the_isGmaxName=/ -gmax\b/i
 const isGmaxName     = n => /-gmax\b/i.test(n);
 const isMegaName     = n => /-mega\b/i.test(n);
 
-/* ======== Counter ======== */
+/* ======== Contatore ======== */
 function updateCounter(){
   const den = filtered.length;
   const fset = new Set(filtered.map(x=>x.name));
@@ -453,8 +505,7 @@ async function getForm(formName){
   formCache.set(formName, d); return d;
 }
 
-/* ======== Forme alternative index ======== */
-let formsIndexingPromise = null;
+/* ======== Forme: indice ======== */
 async function ensureFormsIndex(){
   if(formsIndexed) return;
   if(!formsIndexingPromise){
@@ -477,58 +528,53 @@ async function ensureFormsIndex(){
 }
 
 /* ======== Filtri ======== */
+function syncChipsUI(){
+  document.getElementById('chipAll').classList.toggle('active', showAll.checked);
+  document.getElementById('chipBase').classList.toggle('active', showBase.checked);
+  document.getElementById('chipRegAlt').classList.toggle('active', showRegAlt.checked);
+  document.getElementById('chipMega').classList.toggle('active', showMega.checked);
+  document.getElementById('chipGmax').classList.toggle('active', showGmax.checked);
+  document.getElementById('chipLM').classList.toggle('active', showLM.checked);
+  document.getElementById('chipOther').classList.toggle('active', showOther.checked);
+}
+
 function applyFilters(){
   const term = norm(q.value.trim());
   const wantGen = genSel.value;
 
   const needForms = showRegAlt.checked || showMega.checked || showGmax.checked || showOther.checked || showLM.checked || showAll.checked;
   const ensure = needForms ? ensureFormsIndex() : Promise.resolve();
+
   ensure.then(async ()=>{
-    // Sincronizza "Tutto" rispetto agli altri
     const allOn = showBase.checked && showRegAlt.checked && showMega.checked && showGmax.checked && showLM.checked && showOther.checked;
     if(showAll.checked !== allOn){ showAll.checked = allOn; syncChipsUI(); }
-
-    // Se showAll viene acceso manualmente -> accendi tutti
-    if(showAll.clickedFlag){ // flag temporanea settata dal listener
-      showBase.checked = showRegAlt.checked = showMega.checked = showGmax.checked = showLM.checked = showOther.checked = true;
+    if(showAll.clickedFlag){
+      const to = showAll.checked;
+      showBase.checked = to; showRegAlt.checked = to; showMega.checked = to; showGmax.checked = to; showLM.checked = to; showOther.checked = to;
       showAll.clickedFlag = false;
     }
 
-    // costruiamo il pool come UNIONE delle categorie selezionate
-    const poolMap = new Map(); // name -> {id,name,isForm?,base?,cat?}
-    const addArr = arr => arr.forEach(x=> poolMap.set(x.name, x));
-
-    if(showBase.checked) addArr(list);
-    if(showRegAlt.checked) addArr(formsList.filter(f=>f.cat==='regionalAlt'));
-    if(showMega.checked)   addArr(formsList.filter(f=>f.cat==='mega'));
-    if(showGmax.checked)   addArr(formsList.filter(f=>f.cat==='gmax'));
-    if(showOther.checked)  addArr(formsList.filter(f=>f.cat==='other'));
-
+    const pool = new Map(); const add = arr => arr.forEach(x=>pool.set(x.name,x));
+    if(showBase.checked) add(list);
+    if(showRegAlt.checked) add(formsList.filter(f=>f.cat==='regionalAlt'));
+    if(showMega.checked) add(formsList.filter(f=>f.cat==='mega'));
+    if(showGmax.checked) add(formsList.filter(f=>f.cat==='gmax'));
+    if(showOther.checked) add(formsList.filter(f=>f.cat==='other'));
     if(showLM.checked){
-      // includi tutte le specie e forme che sono leggendari/mitici
-      const allEntries = list.concat(formsList);
-      // carica species per i base delle voci da controllare (deduplicate per base)
-      const bases = [...new Set(allEntries.map(e=> e.isForm ? e.base : e.name))];
+      const entries = list.concat(formsList);
+      const bases = [...new Set(entries.map(e=> e.isForm ? e.base : e.name))];
       await Promise.all(bases.map(b=>limit(()=>getSpecies(b))));
-      allEntries.forEach(e=>{
+      entries.forEach(e=>{
         const base = e.isForm ? e.base : e.name;
         const sp = spCache.get(base);
-        if(sp && (sp.is_legendary || sp.is_mythical)) poolMap.set(e.name, e);
+        if(sp && (sp.is_legendary || sp.is_mythical)) pool.set(e.name, e);
       });
     }
 
-    // array finale dal pool
-    let arr = Array.from(poolMap.values());
-
-    // ricerca per nome
+    let arr = Array.from(pool.values());
     if(term){ arr = arr.filter(s=> norm(s.name).includes(term)); }
+    if(wantGen!=='all'){ arr = arr.filter(s=> genBySpecies.get(s.isForm ? s.base : s.name)===wantGen); }
 
-    // filtro generazione (sulla specie base)
-    if(wantGen!=='all'){
-      arr = arr.filter(s=> genBySpecies.get(s.isForm ? s.base : s.name)===wantGen);
-    }
-
-    // filtro per tipi (AND tra tipi scelti)
     const tps = [...activeTypes];
     if(tps.length){
       status('Filtro per tipo…');
@@ -539,7 +585,7 @@ function applyFilters(){
     filtered = arr;
     sortFiltered();
     resetAndRender();
-    status('');
+    status(filtered.length ? `Trovati ${filtered.length} risultati` : 'Nessun risultato');
   });
 }
 
@@ -570,6 +616,16 @@ function statByKey(d,key){
 }
 
 /* ======== Rendering ======== */
+function catLabel(entry){
+  if(entry.isForm){
+    if(entry.cat==='regionalAlt') return ['Reg. Alt.','cat-regalt'];
+    if(entry.cat==='mega') return ['Mega','cat-mega'];
+    if(entry.cat==='gmax') return ['G-Max','cat-gmax'];
+    return ['Altro','cat-other'];
+  }
+  return ['Regionale','cat-base'];
+}
+
 function resetAndRender(){
   page=0; grid.innerHTML='';
   if(observer) observer.disconnect();
@@ -601,25 +657,28 @@ async function renderNextPage(){
   }
   grid.appendChild(frag);
 }
-function renderCard(spec){
-  const {id,name} = spec;
+
+function renderCard(entry){
+  const {id,name} = entry;
   const isSel = selected.has(name);
+  const [lab,klass] = catLabel(entry);
+
   const card = el('div',{class:'card',role:'checkbox',tabindex:'0','aria-checked':String(isSel),'data-name':name});
   const img = el('img',{class:'sprite',alt:`Sprite di ${name}`,width:72,height:72});
+  img.loading='lazy'; img.decoding='async';
+  const titleRow = el('div',{class:'titleRow'},[
+    el('div',{class:'name',text:cap(name.replaceAll('-',' '))}),
+    el('span',{class:`cat-badge ${klass}`,text:lab})
+  ]);
   const meta = el('div',{class:'meta'},[
-    el('div',{},[
-      el('div',{class:'name',text:cap(name.replaceAll('-',' '))}),
-      el('div',{class:'dex',text:fmtDex(id)})
-    ]),
+    titleRow,
+    el('div',{class:'dex',text:fmtDex(id)}),
     el('div',{class:'types'})
   ]);
-  // checkbox senza attributo 'checked' quando false (evita il bug visivo)
-  const cb = el('input',{type:'checkbox'});
-  cb.checked = isSel;
+  const cb = el('input',{type:'checkbox'}); cb.checked = isSel;
   const actions = el('div',{class:'actions'},[
     el('label',{class:'pill'},[
-      cb,
-      el('span',{text:'Seleziona'})
+      cb, el('span',{text:'Seleziona'})
     ]),
     el('button',{class:'btn',type:'button',onclick:(e)=>{e.stopPropagation(); openDetails(name);}},[document.createTextNode('Dettagli')]),
     el('button',{class:'btn',type:'button',onclick:(e)=>{e.stopPropagation(); playCryFor(name);}},[document.createTextNode('🔊 Audio')])
@@ -630,8 +689,8 @@ function renderCard(spec){
     const t = ev.target;
     if(t.tagName==='INPUT') return;
     toggleSelect(name, card);
-  });
-  cb.addEventListener('change', ()=> toggleSelect(name, card));
+  }, {passive:true});
+  cb.addEventListener('change', ()=> toggleSelect(name, card), {passive:true});
 
   card.addEventListener('keydown',(ev)=>{
     if(ev.key===' '||ev.key==='Enter'){ ev.preventDefault(); toggleSelect(name, card); }
@@ -641,7 +700,7 @@ function renderCard(spec){
   if(hideSel.checked && isSel) card.style.display='none';
   return card;
 }
-function hydrateCard(card,spec,d){
+function hydrateCard(card,entry,d){
   const img = card.querySelector('img.sprite');
   const typesEl = card.querySelector('.types');
   const isShiny = shiny.checked;
@@ -666,7 +725,7 @@ function toggleSelect(name,card){
   updateCounter();
 }
 
-/* ======== Dettagli (con Mega/forme e tabella matchups) ======== */
+/* ======== Dettagli + Abilità + Matchups ======== */
 async function openDetails(name){
   const d = await getPokemon(name);
   if(!d) return;
@@ -703,7 +762,7 @@ async function openDetails(name){
     ]));
   }
 
-  // ABILITÀ (ITA + EN dettagli)
+  // ABILITÀ (ITA + EN)
   mAbilities.innerHTML='';
   for(const a of d.abilities){
     const abName = a.ability.name;
@@ -719,7 +778,7 @@ async function openDetails(name){
     });
   }
 
-  // Matchups: reset & toggle handler
+  // Matchups toggle
   mMatchupsWrap.style.display = 'none';
   mMatchups.innerHTML = '';
   btnMatchups.onclick = async ()=>{
@@ -731,7 +790,7 @@ async function openDetails(name){
     }
   };
 
-  // EVOLUZIONI
+  // Evoluzioni
   mEvo.innerHTML='';
   if(sp?.evolution_chain?.url){
     const chain = await getEvolutionChain(sp.evolution_chain.url);
@@ -743,7 +802,7 @@ async function openDetails(name){
     });
   } else { mEvo.textContent='—'; }
 
-  // MEGA (catena)
+  // Mega
   mMega.innerHTML='';
   const megas = await collectChainMegas(sp);
   if(megas.length){
@@ -757,20 +816,21 @@ async function openDetails(name){
     }
   } else { mMega.textContent = '—'; }
 
-  // FORME (catena) separate per categoria
+  // Forme (separate)
   mFormsReg.innerHTML=''; mFormsGmax.innerHTML=''; mFormsOther.innerHTML='';
   const byCat = await collectChainFormsByCat(sp);
   renderFormBadges(byCat.regionalAlt, mFormsReg, formatFormAltLabel);
   renderFormBadges(byCat.gmax,        mFormsGmax, formatFormAltLabel);
   renderFormBadges(byCat.other,       mFormsOther, formatFormAltLabel);
 
-  // Audio
+  // Audio (no precache; aspetta readiness con timeout + feedback UI)
   const cryLatest = d.cries?.latest || null;
   const baseName = spName.toLowerCase();
-  const showdownFallback = `https://play.pokemonshowdown.com/audio/cries/src/${baseName}.wav`;
-  mCryBtn.onclick = ()=> playCry(cryLatest || showdownFallback);
+  const cryUrl = cryLatest || `https://play.pokemonshowdown.com/audio/cries/src/${baseName}.wav`;
+  mCryBtn.onclick = () => playCry(cryUrl, { maxWait: 1200 }, mCryBtn);
 
-  modal.showModal();
+  // Apri dialog + blocca scroll body
+  Dialog.open(modal);
 }
 
 function renderFormBadges(list, container, labeller){
@@ -826,7 +886,7 @@ async function renderMatchupsTable(typeNames){
   row('Immunità ×0',  groups['x0']);
 }
 
-/* Mega & Forme raccolta su tutta la catena */
+/* ======== Mega & Forme su catena ======== */
 async function collectChainMegas(species){
   const set = new Set();
   if(species?.evolution_chain?.url){
@@ -881,9 +941,8 @@ function formatFormAltLabel(formName){
   return `${base} (${tag})`;
 }
 
-/* Abilità dialog: IT + EN dettagli */
+/* ======== Abilità dialog ======== */
 function openAbilityDialog(ad, fallbackName){
-  ensureDialogSupport(abilityDialog);
   const itName = (ad?.names||[]).find(n=>n.language?.name==='it')?.name || fallbackName;
 
   const itFlavor = [...(ad?.flavor_text_entries||[])].reverse().find(e=>e.language?.name==='it')?.flavor_text;
@@ -894,19 +953,66 @@ function openAbilityDialog(ad, fallbackName){
   abTitle.textContent = itName;
   abTextIt.textContent = (itFlavor || itLong || '—').replace(/\s+/g,' ');
   abTextEn.innerHTML = highlightNumerics((enLong || '—').replace(/\s+/g,' '));
-  abilityDialog.showModal();
+
+  Dialog.open(abilityDialog);
 }
 
-/* Audio */
-function playCry(url){ if(!url) return; try{ audio.pause(); audio = new Audio(url); audio.play().catch(()=>{});}catch{} }
+/* ======== Audio (no precache + feedback) ======== */
+// attende readiness con timeout (ms), poi lascia partire
+function waitUntilReady(a, maxWait = 1200){
+  return new Promise(resolve => {
+    if (a.readyState >= 2) return resolve(); // HAVE_CURRENT_DATA
+    let done = false;
+    const cleanup = () => {
+      if (done) return; done = true;
+      a.removeEventListener('canplaythrough', onReady);
+      a.removeEventListener('canplay', onReady);
+      a.removeEventListener('loadeddata', onReady);
+    };
+    const onReady = () => { cleanup(); resolve(); };
+
+    a.addEventListener('canplaythrough', onReady, { once: true });
+    a.addEventListener('canplay', onReady, { once: true });
+    a.addEventListener('loadeddata', onReady, { once: true });
+
+    setTimeout(() => { cleanup(); resolve(); }, maxWait);
+
+    a.preload = 'none'; // niente precache preventivo
+    a.load();           // avvia il buffering
+  });
+}
+
+async function playCry(url, { maxWait = 1200 } = {}, btn){
+  if(!url) return;
+  try{
+    if (btn){ btn.disabled = true; btn.setAttribute('aria-busy','true'); }
+    // riusa l'audio se stessa src, altrimenti nuova istanza
+    if (!audio || audio.src !== url){
+      if(audio) { try{ audio.pause(); }catch{} }
+      audio = new Audio();
+      audio.src = url;
+      audio.preload = 'none';
+      await waitUntilReady(audio, maxWait);
+    } else {
+      try{ audio.pause(); }catch{}
+      audio.currentTime = 0;
+    }
+    await audio.play();
+  } catch(e) {
+    // opzionale: status('Impossibile riprodurre il verso');
+  } finally {
+    if (btn){ btn.disabled = false; btn.removeAttribute('aria-busy'); }
+  }
+}
+
 async function playCryFor(name){
   const d = await getPokemon(name);
   const base = d?.species?.name?.toLowerCase() || name.toLowerCase();
-  const fallback=`https://play.pokemonshowdown.com/audio/cries/src/${base}.wav`;
-  playCry(d?.cries?.latest || fallback);
+  const url = d?.cries?.latest || `https://play.pokemonshowdown.com/audio/cries/src/${base}.wav`;
+  return playCry(url, { maxWait: 1200 });
 }
 
-/* Types popover */
+/* ======== Types popover ======== */
 function buildTypesPopover(){
   typesGrid.innerHTML='';
   TYPES.forEach(t=>{
@@ -918,33 +1024,32 @@ function buildTypesPopover(){
       if(e.target.checked) activeTypes.add(t); else activeTypes.delete(t);
       typesCount.textContent = activeTypes.size ? `${activeTypes.size} selezionati` : '';
       applyFilters();
-    });
+    }, {passive:true});
     typesGrid.appendChild(lab);
   });
   typesCount.textContent = '';
 }
-btnTypes.addEventListener('click', ()=>{ typesPop.classList.toggle('open'); });
-document.addEventListener('click',(e)=>{ if(!typesPop.contains(e.target)) typesPop.classList.remove('open'); });
-typesClear.addEventListener('click', ()=>{ activeTypes.clear(); buildTypesPopover(); applyFilters(); });
+btnTypes.addEventListener('click', ()=>{
+  const open = !typesPop.classList.contains('open');
+  typesPop.classList.toggle('open', open);
+  btnTypes.setAttribute('aria-expanded', String(open));
+}, {passive:true});
+document.addEventListener('click',(e)=>{
+  if(!typesPop.contains(e.target)){
+    typesPop.classList.remove('open');
+    btnTypes.setAttribute('aria-expanded','false');
+  }
+});
+typesClear.addEventListener('click', ()=>{ activeTypes.clear(); buildTypesPopover(); applyFilters(); }, {passive:true});
 
-/* Eventi UI: categorie */
-function syncChipsUI(){
-  document.getElementById('chipAll').classList.toggle('active', showAll.checked);
-  document.getElementById('chipBase').classList.toggle('active', showBase.checked);
-  document.getElementById('chipRegAlt').classList.toggle('active', showRegAlt.checked);
-  document.getElementById('chipMega').classList.toggle('active', showMega.checked);
-  document.getElementById('chipGmax').classList.toggle('active', showGmax.checked);
-  document.getElementById('chipLM').classList.toggle('active', showLM.checked);
-  document.getElementById('chipOther').classList.toggle('active', showOther.checked);
-}
-showAll.addEventListener('change', ()=>{ showAll.clickedFlag = true; applyFilters(); });
+/* ======== Eventi UI ======== */
+showAll.addEventListener('change', ()=>{ showAll.clickedFlag = true; applyFilters(); }, {passive:true});
 [showBase,showRegAlt,showMega,showGmax,showLM,showOther].forEach(inp=>{
-  inp.addEventListener('change', ()=>{ syncChipsUI(); applyFilters(); });
+  inp.addEventListener('change', ()=>{ syncChipsUI(); applyFilters(); }, {passive:true});
 });
 
-/* Eventi UI: altri */
-q.addEventListener('input', ()=>{ applyFilters(); });
-genSel.addEventListener('change', ()=>{ applyFilters(); });
+q.addEventListener('input', ()=>{ applyFilters(); }, {passive:true});
+genSel.addEventListener('change', ()=>{ applyFilters(); }, {passive:true});
 ordina.addEventListener('change', ()=>{
   const need = ['bstDesc','hpDesc','atkDesc','defDesc','spaDesc','spdDesc','speDesc'].includes(ordina.value);
   if(need){
@@ -959,14 +1064,14 @@ shiny.addEventListener('change', ()=>{
     const d = await getPokemon(name); if(!d) return;
     hydrateCard(card,{name,id:d.id},d);
   });
-});
+}, {passive:true});
 hideSel.addEventListener('change', ()=>{
   document.getElementById('hideChip').classList.toggle('active', hideSel.checked);
   document.querySelectorAll('.card').forEach(card=>{
     const isSel = selected.has(card.getAttribute('data-name'));
     card.style.display = (hideSel.checked && isSel) ? 'none' : '';
   });
-});
+}, {passive:true});
 
 /* Seleziona / Deseleziona filtrati */
 function refreshVisibleChecksFor(namesSet){
@@ -983,23 +1088,55 @@ selectAllBtn.addEventListener('click', ()=>{
   const fset = new Set(filtered.map(x=>x.name));
   filtered.forEach(s=> selected.add(s.name));
   updateCounter(); refreshVisibleChecksFor(fset);
-});
+  status('Selezionati tutti i risultati filtrati');
+}, {passive:true});
 deselectAllBtn.addEventListener('click', ()=>{
   const fset = new Set(filtered.map(x=>x.name));
   filtered.forEach(s=> selected.delete(s.name));
   updateCounter(); refreshVisibleChecksFor(fset);
-});
+  status('Deselezionati i risultati filtrati');
+}, {passive:true});
 
-/* Start */
-(async function start(){
+/* ======== Start ======== */
+(function start(){
   try{
     buildTypesPopover();
-    selected.clear(); updateCounter(); // parte deselezionato
-    await Promise.all([fetchAllSpecies(), fetchGenerations()]);
-    applyFilters();
-    // warmup
-    const warm = list.slice(0,120);
-    warm.forEach(s=>limit(()=>getPokemon(s.name)));
+    selected.clear(); updateCounter(); // deselezionato all'avvio
+    syncChipsUI(); // solo “Regionali” attivo
+    Promise.all([fetchAllSpecies(), fetchGenerations()]).then(()=>{
+      applyFilters();
+      const warm = list.slice(0,120);
+      const runWarm = ()=> warm.forEach(s=>limit(()=>getPokemon(s.name)));
+      ('requestIdleCallback' in window) ? requestIdleCallback(runWarm) : setTimeout(runWarm, 0);
+    });
+
+    // ——— chiusura modali robusta ———
+    const mClose = document.getElementById('m-close');
+    const abClose = document.getElementById('ab-close');
+    mClose.addEventListener('click', ()=> Dialog.close(modal));    // fallback JS
+    abClose.addEventListener('click', ()=> Dialog.close(abilityDialog));
+
+    [modal, abilityDialog].forEach(dlg=>{
+      // Chiudi cliccando sul backdrop
+      dlg.addEventListener('click', (e)=>{
+        const r = dlg.getBoundingClientRect();
+        const inDialog = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        if(!inDialog) Dialog.close(dlg);
+      });
+      // Al close rimuovi no-scroll
+      dlg.addEventListener('close', ()=> document.documentElement.classList.remove('no-scroll'));
+    });
+
+    // ESC per chiudere dialog aperti
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape'){
+        if(abilityDialog.open) Dialog.close(abilityDialog);
+        else if(modal.open) Dialog.close(modal);
+        // chiudi eventualmente il popover tipi
+        typesPop.classList.remove('open');
+        btnTypes.setAttribute('aria-expanded','false');
+      }
+    });
   }catch(e){
     status('Errore di rete. Riprova.');
   }
